@@ -57,7 +57,7 @@ Warum eine Kopie und kein Submodule, steht im Plan von offbeat-engine. Kurz: Jed
 
 **Tempo:** Das Delay läuft synchron zum Tempo. Es nutzt Host-Tempo und BPM wie die Engine: Das Host-Tempo gilt, solange es an ist und der Host eines liefert; sonst gilt der BPM-Regler.
 
-**Oktave:** Regler Octave (−2…+2, Standard 0). In LMMS auf +1 stellen, weil LMMS Noten 12 Halbtöne tiefer schickt.
+**Oktave:** Regler Octave (−2…+2, Standard +1), gleicht aus, dass LMMS Noten 12 Halbtöne tiefer schickt.
 
 **IDs** (ab dem ersten Release nie mehr ändern):
 - URI `https://github.com/lukestark-glitch/offbeat-topline`
@@ -89,7 +89,7 @@ Rechenlast: zwei gehaltene Moll7-Stabs (8 Stimmen) samt Effekten laufen etwa 11-
 ## Offene Fragen
 
 - **Repo öffentlich:** Der Nutzer hat die Repos schon angelegt (öffentlich). Laut Auftrag sollten sie privat sein. Die Sichtbarkeit lasse ich, wie sie ist; der Nutzer kann sie in den GitHub-Einstellungen ändern. Es gibt außerdem ein leeres Repo `offbeat_topline` (mit Unterstrich); ich lasse es unangetastet.
-- **Octave-Standard 0:** gleiche Regel wie in der Engine. Alternative: +1, dann klingen LMMS-Noten wie angezeigt, aber Carla-Tastatur und andere Hosts eine Oktave zu hoch.
+- **Octave-Standard:** Der Nutzer hat entschieden: **+1** (gleicht LMMS aus). Carla-Tastatur und andere Hosts klingen damit eine Oktave höher, dort Octave auf 0 stellen. Der Renderer schickt `--note` wie LMMS 12 Halbtöne tiefer.
 - **FX global statt pro Modus:** Delay und Hall gehören zur Instanz, nicht zum Modus. Die Presets setzen passende Werte. Width ist pro Modus, wie verlangt.
 - **Whistle-Länge:** Ein Stoß dauert höchstens „Length“ (Standard 180 ms), auch wenn die Taste länger gehalten wird. Für gehaltene Pfeifen Length auf 2000 ms stellen.
 - **7er-Akkorde:** Moll7 = Moll + kleine Septime, Dur7 = Dominantseptakkord. Maj7 gibt es nicht.

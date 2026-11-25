@@ -9,7 +9,7 @@ Oben wählst du den **Modus** (Supersaw, Stab, Pluck, Whistle). Darunter liegen 
 
 Presets wählst du in Carla unter „Programs“. Die Taste im Namen (z. B. F5) ist die gedachte Grundtaste.
 
-**LMMS:** LMMS schickt Noten 12 Halbtöne tiefer, als die Piano-Roll zeigt. Stell darum **Octave auf +1**, dann klingt die LMMS-Taste F5 wie F5.
+**LMMS:** LMMS schickt Noten 12 Halbtöne tiefer, als die Piano-Roll zeigt. **Octave steht darum standardmäßig auf +1**, so klingt die LMMS-Taste F5 wie F5. In anderen Hosts (z. B. Carla-Tastatur) Octave auf 0 stellen.
 
 ## GLOBAL
 
@@ -17,7 +17,7 @@ Presets wählst du in Carla unter „Programs“. Die Taste im Namen (z. B. F5) 
 |---|---|---|---|
 | Mode | Supersaw … Whistle | Supersaw | Klang |
 | Volume | −40 … +6 dB | −6 dB | Gesamtlautstärke (Limiter am Ende) |
-| Octave | −2 … +2 | 0 | Verschiebt alle Noten um Oktaven; in LMMS +1 |
+| Octave | −2 … +2 | +1 | Verschiebt alle Noten um Oktaven; +1 gleicht LMMS aus, in anderen Hosts 0 |
 | Stimmen | Poly / Mono | Poly | Mono: Legato, eine neue Note bei gehaltener Taste gleitet ohne Neuanschlag hin |
 | Glide | 0 … 500 ms | 0 ms | Gleiten zur neuen Note |
 | Chord | Aus / Moll / Dur / Moll7 / Dur7 | Aus | Eine Taste spielt einen Akkord (7 = kleine Septime) |

@@ -15,7 +15,7 @@ Projekt: Melodie-Synth (Supersaw, Stab, Pluck, Whistle) der Offbeat-Familie (LV2
 - Geschwister: offbeat-engine (Kick/Bass/Hat/Stab/Pad/Riser), offbeat-topline (Melodie), offbeat-turbo (Master-Lautheit), offbeat-hydraulics (Pumpen). Übersicht: `docs/FAMILIE.md` in offbeat-engine.
 - **Gemeinsamer Code** ist eine bewusste Kopie aus offbeat-engine (Quelle steht im Dateikopf): `src/dsp/ParamInfo.hpp`, `src/dsp/ParamText.*`, `src/dsp/Blocks.hpp`, `plugin/OffbeatKit.hpp`, `plugin/OffbeatParam.hpp`, `tools/Measure.hpp`. Änderungen daran zuerst in offbeat-engine machen und dann hierher kopieren.
 - **Nie ändern:** LV2-URI `https://github.com/lukestark-glitch/offbeat-topline`, VST3-IDs `Ofbt`/`OfbT`, Bundle-Name `offbeat-topline`. Sonst laden gespeicherte LMMS-Projekte nicht mehr. Parameter nur **hinten anhängen**.
-- **LMMS:** schickt Noten 12 Halbtöne tiefer als angezeigt (Regler Octave, in LMMS +1). Tempo fürs Delay: Host-Tempo, Fallback BPM-Regler.
+- **LMMS:** schickt Noten 12 Halbtöne tiefer als angezeigt (Regler Octave, Standard +1). Tempo fürs Delay: Host-Tempo, Fallback BPM-Regler.
 - Arbeit auf Branches, PR öffnen, nach grünen Checks selbst mergen und pushen. `docs/HANDOFF.md` kurz aktuell halten. Nach jedem fertigen Plugin `make install`.
 
 ## Regeln
