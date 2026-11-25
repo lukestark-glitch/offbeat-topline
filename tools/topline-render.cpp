@@ -5,6 +5,8 @@
 //   topline-render --json sound.json --note F5     (JSON wie aus „Kopieren“ in der Oberfläche)
 //   topline-render --check-all                      (Abnahme aller Presets, wie make check)
 //   topline-render --list
+//
+// --note ist die Taste wie in der LMMS-Piano-Roll: der Renderer schickt sie wie LMMS 12 Halbtöne tiefer.
 #include "Engine.hpp"
 #include "Measure.hpp"
 #include "ParamText.hpp"
@@ -65,10 +67,12 @@ Render render(const float* values, const std::vector<std::pair<int, float>>& not
         engine.setTransport(true, (double)pos / sr * bpm / 60.0, bpm);
         while (next < events.size() && events[next].frame <= pos) {
             const Event& e = events[next++];
+            // Wie LMMS: die Taste der Piano-Roll kommt 12 Halbtöne tiefer an (Octave +1 gleicht das aus)
+            const int midi = e.note - 12 < 0 ? 0 : e.note - 12;
             if (e.on)
-                engine.noteOn(e.note, velocity);
+                engine.noteOn(midi, velocity);
             else
-                engine.noteOff(e.note);
+                engine.noteOff(midi);
         }
         uint32_t n = total - pos < 256 ? total - pos : 256;
         if (next < events.size() && events[next].frame < pos + n)
@@ -185,7 +189,7 @@ int run(const Job& job)
     const bool endsInRender = lastSound + (size_t)(0.002f * sr) < total;
 
     std::printf("== %s: Mode %s, Note %d (%.1f Hz), Gate %.0f ms, %g BPM\n", job.title, kModeNames[mode], note,
-                midiToHz((float)note + 12.0f * values[kOctave]), job.lengthMs, job.bpm);
+                midiToHz((float)note - 12.0f + 12.0f * values[kOctave]), job.lengthMs, job.bpm);
     if (!job.quiet) {
         std::printf("Spitze           %7.2f dBFS   RMS %7.2f dBFS\n", toDb(peak), toDb(std::sqrt(sumSq / total)));
         std::printf("Klingt bis       %7.1f ms; ohne Effekte bis −30 dB %.1f ms, bis −40 dB %.1f ms\n", soundMs, dryLen30, dryLen40);
@@ -213,7 +217,7 @@ int run(const Job& job)
         failed += ok ? 0 : 1;
     };
     char buf[160];
-    const float playedHz = midiToHz((float)note + 12.0f * values[kOctave]);
+    const float playedHz = midiToHz((float)note - 12.0f + 12.0f * values[kOctave]); // LMMS-Versatz, siehe render()
     if (mode == kModeSaw) {
         const float releaseMs = dryLen40 - job.lengthMs;
         std::snprintf(buf, sizeof(buf), "Breite: Korrelation 0,3–0,7 (gemessen %.2f)", corr);

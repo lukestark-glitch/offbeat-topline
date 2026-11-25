@@ -13,7 +13,7 @@ const ParamInfo kParams[kParamCount] = {
     // name                  symbol              unit    min     max      default  flags
     { "Mode",                "mode",             "",     0,      3,       0,       kFlagInt, kModeNames },
     { "Volume",              "volume",           "dB",   -40,    6,       -6,      0 },
-    { "Octave",              "octave",           "",     -2,     2,       0,       kFlagInt },
+    { "Octave",              "octave",           "",     -2,     2,       1,       kFlagInt }, // +1: gleicht den LMMS-Versatz aus
     { "Voices",              "voice_mode",       "",     0,      1,       0,       kFlagInt, kVoiceModeNames },
     { "Glide",               "glide",            "ms",   0,      500,     0,       0 },
     { "Chord",               "chord",            "",     0,      4,       0,       kFlagInt, kChordNames },
