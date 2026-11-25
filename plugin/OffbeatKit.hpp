@@ -299,6 +299,89 @@ protected:
         drawValue(p, cx, top + 93, 88, c);
     }
 
+    // Großer Rundregler im Anzeigen-Look (z. B. Ladedruck): Skala mit 5 beschrifteten Strichen,
+    // leuchtender Bogen, Zeiger, Chrom-Nabe; Name und Wert groß in der Mitte unten.
+    void bigKnob(int p, float cx, float cy, float r, const Color& c)
+    {
+        addHit(p, -100, cx - r, cy - r, 2 * r, 2 * r, kKnob, cy + 0.45f * r);
+        const float n = std::fmin(1.0f, std::fmax(0.0f, toNorm(p, values[p])));
+        const float a0 = 0.75f * kit::kPi, a1 = a0 + 1.5f * kit::kPi * n;
+
+        beginPath(); // Zifferblatt
+        circle(cx, cy, r);
+        fillPaint(radialGradient(cx, cy - 0.2f * r, 0.1f * r, r, kit::withAlpha(c, 0.10f), th.night));
+        fill();
+        strokeColor(kit::withAlpha(c, 0.6f));
+        strokeWidth(2);
+        stroke();
+
+        lineCap(ROUND);
+        beginPath();
+        arc(cx, cy, 0.82f * r, a0, 2.25f * kit::kPi, CW);
+        strokeWidth(0.07f * r);
+        strokeColor(th.track);
+        stroke();
+        if (n > 0.001f) {
+            beginPath();
+            arc(cx, cy, 0.82f * r, a0, a1, CW);
+            strokeWidth(0.16f * r);
+            strokeColor(kit::withAlpha(c, 0.22f));
+            stroke();
+            strokeWidth(0.07f * r);
+            strokeColor(c);
+            stroke();
+        }
+        lineCap(BUTT);
+
+        fontSize(0.1f * r);
+        textAlign(ALIGN_CENTER | ALIGN_MIDDLE);
+        for (int i = 0; i <= 20; ++i) { // Skala: 20 Teilstriche, jeder fünfte beschriftet
+            const float a = a0 + 1.5f * kit::kPi * (float)i / 20.0f, major = i % 5 == 0;
+            beginPath();
+            moveTo(cx + (major ? 0.6f : 0.66f) * r * std::cos(a), cy + (major ? 0.6f : 0.66f) * r * std::sin(a));
+            lineTo(cx + 0.72f * r * std::cos(a), cy + 0.72f * r * std::sin(a));
+            strokeWidth(major ? 2.0f : 1.0f);
+            strokeColor(kit::withAlpha(th.text, major ? 0.8f : 0.4f));
+            stroke();
+            if (major) {
+                char tick[16];
+                std::snprintf(tick, sizeof(tick), "%g", std::round(fromNorm(p, (float)i / 20.0f) * 10.0f) / 10.0f);
+                fillColor(th.dim);
+                text(cx + 0.48f * r * std::cos(a), cy + 0.48f * r * std::sin(a), tick, nullptr);
+            }
+        }
+
+        beginPath(); // Zeiger
+        moveTo(cx - 0.05f * r * std::cos(a1), cy - 0.05f * r * std::sin(a1));
+        lineTo(cx + 0.7f * r * std::cos(a1), cy + 0.7f * r * std::sin(a1));
+        strokeWidth(4);
+        lineCap(ROUND);
+        strokeColor(c);
+        stroke();
+        lineCap(BUTT);
+        beginPath(); // Chrom-Nabe
+        circle(cx, cy, 0.12f * r);
+        fillPaint(linearGradient(0, cy - 0.12f * r, 0, cy + 0.12f * r, th.chromeHi, th.chromeLo));
+        fill();
+
+        char label[40];
+        kit::upper(controlLabel(p), label, sizeof(label));
+        fontSize(11);
+        textLetterSpacing(2);
+        fillColor(th.dim);
+        text(cx, cy + 0.36f * r, label, nullptr);
+        textLetterSpacing(0);
+        if (p == editParam) {
+            drawValue(p, cx, cy + 0.58f * r, 100, c);
+            return;
+        }
+        char buf[32];
+        formatValue(p, buf, sizeof(buf));
+        fontSize(0.17f * r);
+        fillColor(th.text);
+        text(cx, cy + 0.58f * r, buf, nullptr);
+    }
+
     // Kompakter Regler als Pille (Name links, Wert rechts) für Kopfzeilen: ziehen, Mausrad,
     // Klick ohne Ziehen = Zahl eintippen; Schalter per Klick.
     void compact(int p, float x, float y, float w, const Color& c)
