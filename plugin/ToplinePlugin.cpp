@@ -1,5 +1,6 @@
 // DPF-Hülle von Offbeat Topline: reicht Parameter, Programme, MIDI und Host-Tempo an die Engine weiter.
 #include "DistrhoPlugin.hpp"
+#include "../src/link/OffbeatLink.hpp"
 #include "Engine.hpp"
 #include "OffbeatParam.hpp"
 
@@ -51,6 +52,13 @@ protected:
             engine.setTransport(false, 0.0, 0.0);
         }
 
+        // Offbeat Link: Sound für Gearbox-Songs spiegeln, geladenen Sound übernehmen
+        int linkCount = 0;
+        if (link.update((double)frames / getSampleRate(), kParamCount, [&](int i) { return engine.getParam(i); }, linkValues, linkCount))
+            for (int i = 0; i < linkCount && i < kParamCount; ++i)
+                if (!(kParams[i].flags & (kFlagOutput | kFlagHidden)))
+                    engine.setParam(i, linkValues[i]);
+
         uint32_t pos = 0;
         for (uint32_t e = 0; e < eventCount; ++e) {
             const MidiEvent& ev = events[e];
@@ -69,6 +77,8 @@ protected:
                 engine.allNotesOff();
             else if (status == 0xC0 && ev.data[1] < kPresetCount) // Program Change, z. B. von Offbeat Gearbox
                 loadProgram(ev.data[1]);
+            if (status == 0xB0)
+                link.cc(ev.data[1], ev.data[2]);
         }
         if (pos < frames)
             engine.process(outputs[0] + pos, outputs[1] + pos, frames - pos);
@@ -76,6 +86,8 @@ protected:
 
 private:
     Engine engine;
+    link::Client link { link::kTopline };
+    float linkValues[link::kMaxValues];
 
     DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ToplinePlugin)
 };
