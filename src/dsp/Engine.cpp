@@ -55,8 +55,14 @@ void Engine::resetVoices()
 }
 
 // Host-Tempo nur, wenn "Tempo from Host" an ist und der Host eines liefert; sonst "Tempo BPM".
-void Engine::setTransport(bool, double, double hostBpm)
+void Engine::setTransport(bool playing, double, double hostBpm)
 {
+    // Play im Host beendet ein laufendes Vorhören: beim Abspielen klingt nur, was vom Host kommt.
+    if (playing && !transportRunning && previewActive) {
+        previewActive = 0;
+        allNotesOff();
+    }
+    transportRunning = playing;
     bpm = (params[kTempoHost] >= 0.5f && hostBpm > 0.0) ? hostBpm : params[kTempoBpm];
 }
 
@@ -238,6 +244,8 @@ void Engine::updatePreview()
     if (request == lastPreview)
         return;
     lastPreview = request;
+    if (transportRunning && (request & 7) != 0)
+        return; // Host spielt: Vorhören startet nicht (auch nicht durch wiederhergestellte Parameter)
     allNotesOff();
     if ((request & 7) == 0) {
         previewActive = 0;

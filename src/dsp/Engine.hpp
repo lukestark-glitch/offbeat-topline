@@ -56,7 +56,7 @@ private:
     float vibPhase = 0.0f;
 
     // Vorhören (aus der Oberfläche über den Parameter preview): eigenes kleines Noten-Raster
-    bool previewSeen = false;
+    bool previewSeen = false, transportRunning = false; // transportRunning: Host-Transport läuft
     int lastPreview = 0, previewActive = 0, previewCount = 0, previewNext = 0;
     uint32_t previewPos = 0, previewLen = 0;
     NoteEvent previewEv[64];
