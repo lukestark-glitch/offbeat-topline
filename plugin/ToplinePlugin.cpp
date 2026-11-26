@@ -78,7 +78,7 @@ protected:
             else if (status == 0xC0 && ev.data[1] < kPresetCount) // Program Change, z. B. von Offbeat Gearbox
                 loadProgram(ev.data[1]);
             if (status == 0xB0)
-                link.cc(ev.data[1], ev.data[2]);
+                link.cc(ev.data[0] & 15, ev.data[1], ev.data[2]);
         }
         if (pos < frames)
             engine.process(outputs[0] + pos, outputs[1] + pos, frames - pos);
