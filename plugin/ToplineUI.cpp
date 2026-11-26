@@ -73,7 +73,7 @@ protected:
         kit::upper(kModeNames[mode], label, sizeof(label));
         drawPanel(kMargin, kModeY, kW - 2 * kMargin, kLabelH + 2 * kCellH, label, accent);
         char tag[48];
-        std::snprintf(tag, sizeof(tag), "MODE %d/%d  \xc2\xb7  VST3 / LV2", mode + 1, kModeCount);
+        std::snprintf(tag, sizeof(tag), "MODE %d/%d", mode + 1, kModeCount);
         drawTag(kW - kMargin - 14, kModeY + 13, tag);
         int list[16];
         const int count = modeParams(mode, list);
