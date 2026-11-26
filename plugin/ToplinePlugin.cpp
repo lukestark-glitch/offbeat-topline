@@ -67,6 +67,8 @@ protected:
                 engine.noteOff(ev.data[1]);
             else if (status == 0xB0 && (ev.data[1] == 120 || ev.data[1] == 123))
                 engine.allNotesOff();
+            else if (status == 0xC0 && ev.data[1] < kPresetCount) // Program Change, z. B. von Offbeat Gearbox
+                loadProgram(ev.data[1]);
         }
         if (pos < frames)
             engine.process(outputs[0] + pos, outputs[1] + pos, frames - pos);
