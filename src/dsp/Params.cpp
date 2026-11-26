@@ -133,4 +133,14 @@ void applyPreset(int index, float out[kParamCount])
         out[p.values[i].id] = p.values[i].value;
 }
 
+int jsonParams(const float values[kParamCount], int* out)
+{
+    // Modus, GLOBAL, FX und die Regler des aktiven Modus
+    int n = 0;
+    for (int p = kMode; p <= kTempoBpm; ++p)
+        out[n++] = p;
+    const int mode = (int)values[kMode];
+    return n + modeParams(mode < 0 || mode >= kModeCount ? 0 : mode, out + n);
+}
+
 } // namespace offbeat

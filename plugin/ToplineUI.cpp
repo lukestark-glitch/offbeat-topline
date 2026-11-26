@@ -93,14 +93,6 @@ protected:
             setValue(kMode, (float)(id - 100), true);
     }
 
-    // KOPIEREN: Modus, GLOBAL, FX und die Regler des aktiven Modus.
-    int jsonParams(int* out, int) const override
-    {
-        int n = 0;
-        for (int p = kMode; p <= kTempoBpm; ++p)
-            out[n++] = p;
-        return n + modeParams(currentMode(), out + n);
-    }
 
     // Name ohne Modus-Vorsilbe ("Saw Detune" → "Detune"), kurze Namen für Kopfzeilen.
     const char* controlLabel(int p) const override

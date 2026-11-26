@@ -302,6 +302,13 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         const char* v = i + 1 < argc ? argv[i + 1] : nullptr;
+        if (a == "--preset-json" && v) { // Preset als JSON, genau wie KOPIEREN in der Oberfläche
+            float vals[kParamCount];
+            applyPreset(std::atoi(v), vals);
+            int list[kParamCount];
+            std::fputs(toJson(vals, list, jsonParams(vals, list)).c_str(), stdout);
+            return 0;
+        }
         if (a == "--list") {
             std::puts("Presets:");
             for (int p = 0; p < kPresetCount; ++p)
