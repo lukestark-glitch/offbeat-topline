@@ -1,9 +1,5 @@
 #include "Engine.hpp"
 
-#if defined(__SSE__) || defined(__x86_64__)
-#include <xmmintrin.h>
-#define OFFBEAT_HAVE_SSE 1
-#endif
 
 namespace offbeat {
 
@@ -215,10 +211,7 @@ VoiceSettings Engine::settings() const
 
 void Engine::process(float* outL, float* outR, uint32_t frames)
 {
-#ifdef OFFBEAT_HAVE_SSE
-    const unsigned int oldCsr = _mm_getcsr();
-    _mm_setcsr(oldCsr | 0x8040); // Flush-to-Zero + Denormals-are-Zero
-#endif
+    const DenormalGuard denormals; // Flush-to-Zero für diesen Block (Intel und Apple Silicon)
     const int mode = (int)params[kMode];
     const VoiceSettings s = settings();
     const float widthGain = 2.0f * params[kWidthParam[mode]];
@@ -276,9 +269,6 @@ void Engine::process(float* outL, float* outR, uint32_t frames)
         outL[i] = softLimit(vol * (mid + side));
         outR[i] = softLimit(vol * (mid - side));
     }
-#ifdef OFFBEAT_HAVE_SSE
-    _mm_setcsr(oldCsr);
-#endif
 }
 
 } // namespace offbeat
