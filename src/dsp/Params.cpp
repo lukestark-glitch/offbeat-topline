@@ -67,6 +67,11 @@ const ParamInfo kParams[kParamCount] = {
     { "Whistle Trill Rate",  "whistle_trill_hz", "Hz",   2,      20,      12,      0 },
     { "Whistle Length",      "whistle_length",   "ms",   50,     2000,    180,     kFlagLog },
     { "Whistle Width",       "whistle_width",    "",     0,      1,       0.1f,    0 },
+    { "Preview",             "preview",          "",     0,      15,      0,       kFlagInt | kFlagHidden },
+    { "Preview Loop",        "preview_loop",     "",     0,      1,       0,       kFlagBool | kFlagHidden },
+    { "Preview Phrase",      "preview_phrase",   "",     0,      1,       0,       kFlagBool | kFlagHidden },
+    { "Preview Active",      "preview_active",   "",     0,      4,       0,       kFlagOutput | kFlagHidden },
+    { "Current BPM",         "current_bpm",      "BPM",  20,     300,     160,     kFlagOutput | kFlagHidden },
 };
 
 namespace {

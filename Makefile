@@ -1,5 +1,6 @@
 # Offbeat Topline – Build für Plugin (VST3, VST2, AU, CLAP, LV2) und Offline-Werkzeug topline-render.
-#   make             Plugin + topline-render (macOS: Universal-Binary für Intel und Apple Silicon)
+#   make             Plugin + topline-render (macOS: Universal-Binary für Intel und Apple Silicon;
+#                    make UNIVERSAL=false nur für die eigene Architektur)
 #   make install     macOS: nach ~/Library/Audio/Plug-Ins kopieren und ad-hoc signieren
 #   make check       Abnahme mit topline-render --check-all
 #   make standalone  Standalone-App (z. B. für Bilder der Oberfläche, siehe docs/CODE.md)
@@ -7,11 +8,13 @@
 
 NAME = offbeat-topline
 CXX ?= c++
-DSP_SRC = src/dsp/Engine.cpp src/dsp/Params.cpp src/dsp/ParamText.cpp
+DSP_SRC = src/dsp/Engine.cpp src/dsp/Params.cpp src/dsp/ParamText.cpp src/dsp/Preview.cpp
 DSP_HDR = $(wildcard src/dsp/*.hpp) tools/Measure.hpp
 PLUGINS_DIR = $(HOME)/Library/Audio/Plug-Ins
 
-ifeq ($(shell uname -s),Darwin)
+# UNIVERSAL=false baut auf dem Mac nur für die eigene Architektur (z. B. schneller auf einem Intel-Mac).
+UNIVERSAL ?= true
+ifeq ($(shell uname -s)$(UNIVERSAL),Darwintrue)
 # Universal-Binary: läuft auf Intel- und Apple-Silicon-Macs. NOOPT: ohne x86-only-Flags (-mfpmath=sse).
 ARCH_FLAGS = -arch x86_64 -arch arm64 -mmacosx-version-min=10.15
 PLUGIN_ENV = CFLAGS="$(ARCH_FLAGS)" CXXFLAGS="$(ARCH_FLAGS)" LDFLAGS="$(ARCH_FLAGS)" NOOPT=true
@@ -35,6 +38,7 @@ bin/topline-render: tools/topline-render.cpp $(DSP_SRC) $(DSP_HDR)
 
 check: render
 	bin/topline-render --check-all
+	bin/topline-render --preview-check
 
 install: plugin
 	rm -rf "$(PLUGINS_DIR)/VST3/$(NAME).vst3" "$(PLUGINS_DIR)/LV2/$(NAME).lv2" "$(PLUGINS_DIR)/VST/$(NAME).vst" \
@@ -51,6 +55,10 @@ install: plugin
 	codesign --force --deep -s - "$(PLUGINS_DIR)/Components/$(NAME).component"
 	codesign --force --deep -s - "$(PLUGINS_DIR)/CLAP/$(NAME).clap"
 	killall -9 AudioComponentRegistrar 2>/dev/null || true  # AU-Liste neu einlesen
+	rm -rf "$(HOME)/Applications/Offbeat Topline.app"  # Standalone-App
+	mkdir -p "$(HOME)/Applications"
+	cp -R bin/$(NAME).app "$(HOME)/Applications/Offbeat Topline.app"
+	codesign --force --deep -s - "$(HOME)/Applications/Offbeat Topline.app"
 
 clean:
 	rm -rf bin build

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Effects.hpp"
+#include "Render.hpp"
 #include "Params.hpp"
 #include "Voice.hpp"
 
@@ -17,6 +18,7 @@ public:
     void setParam(int id, float value);
     float getParam(int id) const { return params[id]; }
 
+    // Noten vom Host; sie haben Vorrang und beenden ein laufendes Vorhören.
     void noteOn(int note, int velocity);
     void noteOff(int note);
     void allNotesOff();
@@ -27,6 +29,9 @@ public:
     void process(float* outL, float* outR, uint32_t frames);
 
 private:
+    void playNoteOn(int note, int velocity);
+    void playNoteOff(int note);
+    void updatePreview(); // einmal pro Block: Vorhör-Wunsch aus der Oberfläche übernehmen
     static constexpr int kVoices = 10;
 
     void resetVoices();
@@ -49,6 +54,12 @@ private:
     int heldCount = 0;
     Noise rnd;
     float vibPhase = 0.0f;
+
+    // Vorhören (aus der Oberfläche über den Parameter preview): eigenes kleines Noten-Raster
+    bool previewSeen = false;
+    int lastPreview = 0, previewActive = 0, previewCount = 0, previewNext = 0;
+    uint32_t previewPos = 0, previewLen = 0;
+    NoteEvent previewEv[64];
 
     PeakEq eq;
     Chorus chorus;

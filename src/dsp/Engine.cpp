@@ -1,4 +1,7 @@
 #include "Engine.hpp"
+#include "Preview.hpp"
+
+#include <algorithm>
 
 
 namespace offbeat {
@@ -41,6 +44,7 @@ void Engine::resetVoices()
     for (ToplineVoice& v : voices)
         v = ToplineVoice();
     heldCount = 0;
+    previewActive = 0;
     lastNote = -1;
     eq.reset();
     chorus.reset();
@@ -57,6 +61,20 @@ void Engine::setTransport(bool, double, double hostBpm)
 }
 
 void Engine::noteOn(int note, int velocity)
+{
+    if (previewActive) { // Noten vom Host haben Vorrang
+        previewActive = 0;
+        allNotesOff();
+    }
+    playNoteOn(note, velocity);
+}
+
+void Engine::noteOff(int note)
+{
+    playNoteOff(note);
+}
+
+void Engine::playNoteOn(int note, int velocity)
 {
     note = transpose(note);
     const float vel = clampf((float)velocity / 127.0f, 0.0f, 1.0f);
@@ -105,7 +123,7 @@ void Engine::playChord(int key, float velocity, bool legato)
     lastNote = key;
 }
 
-void Engine::noteOff(int note)
+void Engine::playNoteOff(int note)
 {
     note = transpose(note);
     int i = 0;
@@ -209,6 +227,32 @@ VoiceSettings Engine::settings() const
     return s;
 }
 
+void Engine::updatePreview()
+{
+    const int request = (int)params[kPreview];
+    if (!previewSeen) { // Wert beim Laden eines Projekts: nur merken, nicht abspielen
+        previewSeen = true;
+        lastPreview = request;
+        return;
+    }
+    if (request == lastPreview)
+        return;
+    lastPreview = request;
+    allNotesOff();
+    if ((request & 7) == 0) {
+        previewActive = 0;
+        return;
+    }
+    previewCount = previewEvents(params, params[kPreviewPhrase] >= 0.5f, bpm, (int)sr, previewEv, 64);
+    for (int i = 1; i < previewCount; ++i) // nach Zeit sortieren (ohne Speicher anzufordern)
+        for (int j = i; j > 0 && previewEv[j].frame < previewEv[j - 1].frame; --j)
+            std::swap(previewEv[j], previewEv[j - 1]);
+    previewPos = 0;
+    previewNext = 0;
+    previewLen = (uint32_t)std::lround(kPreviewBeats * 60.0 / bpm * sr);
+    previewActive = 1;
+}
+
 void Engine::process(float* outL, float* outR, uint32_t frames)
 {
     const DenormalGuard denormals; // Flush-to-Zero für diesen Block (Intel und Apple Silicon)
@@ -233,7 +277,23 @@ void Engine::process(float* outL, float* outR, uint32_t frames)
         started = true;
     }
 
+    updatePreview();
     for (uint32_t i = 0; i < frames; ++i) {
+        if (previewActive) {
+            while (previewNext < previewCount && previewEv[previewNext].frame <= previewPos) {
+                const NoteEvent& e = previewEv[previewNext++];
+                if (e.on)
+                    playNoteOn(e.note, e.velocity);
+                else
+                    playNoteOff(e.note);
+            }
+            if (++previewPos >= previewLen) {
+                if (params[kPreviewLoop] >= 0.5f)
+                    previewPos = 0, previewNext = 0; // nächste Runde
+                else
+                    previewActive = 0; // Rest klingt natürlich aus
+            }
+        }
         vibPhase += vibStep;
         if (vibPhase >= 1.0f)
             vibPhase -= 1.0f;
@@ -269,6 +329,8 @@ void Engine::process(float* outL, float* outR, uint32_t frames)
         outL[i] = softLimit(vol * (mid + side));
         outR[i] = softLimit(vol * (mid - side));
     }
+    params[kPreviewActive] = (float)previewActive; // Anzeige für die Oberfläche
+    params[kCurrentBpm] = (float)bpm;
 }
 
 } // namespace offbeat

@@ -8,6 +8,8 @@
 //
 // --note ist die Taste wie in der LMMS-Piano-Roll: der Renderer schickt sie wie LMMS 12 Halbtöne tiefer.
 #include "Engine.hpp"
+#include "Preview.hpp"
+#include "Render.hpp"
 #include "Measure.hpp"
 #include "ParamText.hpp"
 
@@ -51,35 +53,18 @@ Render render(const float* values, const std::vector<std::pair<int, float>>& not
     engine.setSampleRate((float)sr);
     for (int i = 0; i < kParamCount; ++i)
         engine.setParam(i, values[i]);
-    struct Event { uint32_t frame; int note; bool on; };
-    std::vector<Event> events;
+    std::vector<NoteEvent> events;
     float endMs = 0.0f;
     for (const auto& nt : notes) {
-        events.push_back({ (uint32_t)(nt.second * 0.001f * sr), nt.first, true });
-        events.push_back({ (uint32_t)((nt.second + lengthMs) * 0.001f * sr), nt.first, false });
+        // Wie LMMS: die Taste der Piano-Roll kommt 12 Halbtöne tiefer an (Octave +1 gleicht das aus)
+        const int midi = nt.first - 12 < 0 ? 0 : nt.first - 12;
+        events.push_back({ (uint32_t)(nt.second * 0.001f * sr), midi, velocity, true });
+        events.push_back({ (uint32_t)((nt.second + lengthMs) * 0.001f * sr), midi, velocity, false });
         endMs = std::fmax(endMs, nt.second + lengthMs);
     }
-    std::stable_sort(events.begin(), events.end(), [](const Event& a, const Event& b) { return a.frame < b.frame; });
     const uint32_t total = (uint32_t)((endMs + tailMs) * 0.001f * sr);
     Render out { std::vector<float>(total), std::vector<float>(total) };
-    size_t next = 0;
-    for (uint32_t pos = 0; pos < total;) {
-        engine.setTransport(true, (double)pos / sr * bpm / 60.0, bpm);
-        while (next < events.size() && events[next].frame <= pos) {
-            const Event& e = events[next++];
-            // Wie LMMS: die Taste der Piano-Roll kommt 12 Halbtöne tiefer an (Octave +1 gleicht das aus)
-            const int midi = e.note - 12 < 0 ? 0 : e.note - 12;
-            if (e.on)
-                engine.noteOn(midi, velocity);
-            else
-                engine.noteOff(midi);
-        }
-        uint32_t n = total - pos < 256 ? total - pos : 256;
-        if (next < events.size() && events[next].frame < pos + n)
-            n = events[next].frame - pos;
-        engine.process(&out.l[pos], &out.r[pos], n);
-        pos += n;
-    }
+    renderEvents(engine, events, bpm, sr, out.l.data(), out.r.data(), total); // wie im Plugin und in der Vorschau
     return out;
 }
 
@@ -280,11 +265,90 @@ int run(const Job& job)
     return failed;
 }
 
+// Abnahme der Vorschau: renderPreview() (das, was die Oberfläche zeichnet) ist bitgleich zum Renderer mit
+// denselben Noten; Vorhören über den Plugin-Ausgang knackst nicht (Start, Loop, Stopp, Host-Note).
+int previewCheck()
+{
+    int failed = 0;
+    auto expect = [&](const std::string& what, bool ok) {
+        std::printf("  [%s] %s\n", ok ? "OK " : "FEHLER", what.c_str());
+        failed += ok ? 0 : 1;
+    };
+    const int sr = 48000;
+    const double bpm = 160.0;
+    std::puts("== Vorschau bitgleich zum Renderer (alle Presets, Ton und Phrase)");
+    int compared = 0, differing = 0;
+    for (int p = 0; p < kPresetCount; ++p) {
+        float values[kParamCount];
+        applyPreset(p, values);
+        for (bool phrase : { false, true }) {
+            std::vector<float> al, ar;
+            renderPreview(values, phrase, bpm, sr, al, ar);
+            Engine engine;
+            engine.setSampleRate((float)sr);
+            for (int i = 0; i < kParamCount; ++i)
+                engine.setParam(i, values[i]);
+            NoteEvent ev[64];
+            const int n = previewEvents(values, phrase, bpm, sr, ev, 64);
+            std::vector<float> bl(al.size()), br(al.size());
+            renderEvents(engine, std::vector<NoteEvent>(ev, ev + n), bpm, sr, bl.data(), br.data(), (uint32_t)bl.size());
+            ++compared;
+            differing += (al == bl && ar == br) ? 0 : 1;
+        }
+    }
+    char buf[160];
+    std::snprintf(buf, sizeof(buf), "%d Vorschau-Renderings, davon %d nicht bitgleich", compared, differing);
+    expect(buf, differing == 0);
+
+    std::puts("== Vorhören über den Plugin-Ausgang (Pluck – F-Moll, Phrase, Loop): Start, Stopp, Host-Note");
+    float values[kParamCount];
+    applyPreset(6, values);
+    Engine engine;
+    engine.setSampleRate((float)sr);
+    for (int i = 0; i < kParamCount; ++i)
+        engine.setParam(i, values[i]);
+    engine.setParam(kPreviewLoop, 1);
+    engine.setParam(kPreviewPhrase, 1);
+    const uint32_t total = (uint32_t)(4.0 * sr);
+    std::vector<float> l(total), r(total);
+    float maxStep = 0.0f, maxStepSteady = 0.0f;
+    bool played = false;
+    for (uint32_t pos = 0; pos < total; pos += 256) {
+        const double t = (double)pos / sr;
+        engine.setTransport(false, 0.0, 0.0); // Host läuft nicht
+        if (pos == 256)
+            engine.setParam(kPreview, 1 | 8);
+        if (pos == 256 * 300)
+            engine.setParam(kPreview, 0); // Stopp
+        if (pos == 256 * 450)
+            engine.setParam(kPreview, 1); // wieder starten
+        if (pos == 256 * 600)
+            engine.noteOn(65, 110); // Host-Note hat Vorrang
+        const uint32_t n = std::min<uint32_t>(256, total - pos);
+        engine.process(&l[pos], &r[pos], n);
+        played |= engine.getParam(kPreviewActive) == 1.0f;
+        for (uint32_t i = pos + 1; i < pos + n; ++i) {
+            const float step = std::fabs(l[i] - l[i - 1]);
+            for (uint32_t at : { 256u, 256u * 300, 256u * 450 })
+                if (i + sr / 100 > at && i < at + sr / 100)
+                    maxStep = std::fmax(maxStep, step);
+            if (t > 0.2 && t < 1.5)
+                maxStepSteady = std::fmax(maxStepSteady, step);
+        }
+    }
+    expect("Vorhören startet ohne laufenden Host", played);
+    expect("Host-Note beendet das Vorhören", engine.getParam(kPreviewActive) == 0.0f);
+    std::snprintf(buf, sizeof(buf), "Kein Knackser an Start/Stopp/Neustart: größter Sprung %.4f ≤ im laufenden Klang %.4f", maxStep, maxStepSteady);
+    expect(buf, maxStep <= maxStepSteady * 1.01f);
+    std::printf("%s\n", failed ? "NICHT BESTANDEN" : "BESTANDEN");
+    return failed;
+}
+
 void usage()
 {
     std::puts("topline-render [--preset NAME|NR] [--mode supersaw|stab|pluck|whistle] [--note F5|77[@ms]]... [--velocity 0-127]\n"
               "               [--bpm 160] [--length MS] [--tail MS] [--sr 48000] [--json datei] [--set symbol=wert]...\n"
-              "               [--out datei.wav] [--check] [--check-all] [--list]");
+              "               [--out datei.wav] [--check] [--check-all] [--preview-check] [--list]");
 }
 
 } // namespace
@@ -302,6 +366,8 @@ int main(int argc, char** argv)
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         const char* v = i + 1 < argc ? argv[i + 1] : nullptr;
+        if (a == "--preview-check")
+            return previewCheck() ? 1 : 0;
         if (a == "--preset-json" && v) { // Preset als JSON, genau wie KOPIEREN in der Oberfläche
             float vals[kParamCount];
             applyPreset(std::atoi(v), vals);

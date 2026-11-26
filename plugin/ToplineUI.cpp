@@ -1,6 +1,7 @@
 // Oberfläche von Offbeat Topline: Modus-Reiter, GLOBAL (Spielweise, Vibrato, Motorrad), Regler des
 // aktiven Modus und FX. Look und Bedienung: OffbeatKit.hpp (aus offbeat-engine).
 #include "OffbeatKit.hpp"
+#include "Preview.hpp"
 #include "BikeImage.h" // aus assets/bike.png erzeugt (xxd -i), siehe plugin/Makefile
 
 START_NAMESPACE_DISTRHO
@@ -11,8 +12,8 @@ using kit::kCellW;
 using kit::kLabelH;
 
 namespace {
-constexpr float kW = 860, kH = 656, kMargin = 20, kGridX = 31;
-constexpr float kGlobalY = 104, kModeY = 252, kFxY = 510;
+constexpr float kW = 860, kH = 800, kMargin = 20, kGridX = 31, kKeysH = 96; // kKeysH: Tastatur der App
+constexpr float kGlobalY = 104, kModeY = 252, kFxY = 510, kPreviewY = 656;
 
 const int kGlobals[5] = { kVolume, kGlide, kVibDepth, kVibRate, kVibDelay };
 const int kFx[6] = { kChorus, kDelayMix, kDelayTime, kDelayFeedback, kReverbMix, kReverbSize };
@@ -41,8 +42,10 @@ kit::Theme toplineTheme()
 class ToplineUI : public OffbeatKitUI {
 public:
     ToplineUI()
-        : OffbeatKitUI(kW, kH, toplineTheme())
+        : OffbeatKitUI(kW, kit::isStandaloneApp() ? kH + kKeysH : kH, toplineTheme())
     {
+        if (kit::isStandaloneApp() && isUsingNativeAudio() && supportsMIDI() && !isMIDIEnabled())
+            requestMIDI(); // MIDI-Keyboards in der App einschalten
         bike = createImageFromMemory(bike_png, bike_png_len, IMAGE_GENERATE_MIPMAPS);
     }
 
@@ -85,6 +88,40 @@ protected:
             knob(kFx[i], kGridX + i * kCellW, kFxY + kLabelH, th.brand);
         compact(kTempoHost, 70, kFxY + 3, 128, th.brand);
         compact(kTempoBpm, 206, kFxY + 3, 116, th.brand);
+
+        // Vorschau: ein Ton bzw. Akkord des Modus oder eine kurze Phrase, mit dem echten DSP gerendert
+        drawPanel(kMargin, kPreviewY, kW - 2 * kMargin, kH - kPreviewY - 12, "VORSCHAU", accent);
+        drawPreview(kMargin + 14, kPreviewY + kLabelH + 2, kW - 2 * kMargin - 28, kH - kPreviewY - kLabelH - 26, accent);
+
+        if (kit::isStandaloneApp()) { // App: Bildschirm-Tastatur, auch mit der Computer-Tastatur spielbar
+            drawPanel(kMargin, kH - 4, kW - 2 * kMargin, kKeysH - 8, "TASTATUR  \xc2\xb7  A W S E D F T G Z H U J K   \xc2\xb7  - / +  OKTAVE", th.brand);
+            drawKeyboard(kMargin + 14, kH - 4 + kLabelH, kW - 2 * kMargin - 28, kKeysH - kLabelH - 16, th.brand);
+        }
+    }
+
+    int octaveParam() const override { return kOctave; }
+
+    PreviewParams previewParams() const override
+    {
+        PreviewParams pp;
+        pp.play = kPreview, pp.loop = kPreviewLoop, pp.bar = kPreviewPhrase, pp.active = kPreviewActive, pp.bpm = kCurrentBpm;
+        pp.barLabels[0] = "Ton", pp.barLabels[1] = "Phrase";
+        pp.beats[0] = pp.beats[1] = 4; // beides über einen Takt (Release und Hall passen hinein)
+        pp.allButton = false;
+        return pp;
+    }
+
+    void renderPreview() override
+    {
+        const double bpm = values[kCurrentBpm] > 20.0f ? values[kCurrentBpm] : 160.0;
+        std::vector<float> l, r;
+        previewLayers.resize(1);
+        previewLayers[0].name = kModeNames[currentMode()];
+        offbeat::renderPreview(values, values[kPreviewPhrase] >= 0.5f, bpm, 48000, l, r);
+        previewSum.resize(l.size());
+        for (size_t i = 0; i < l.size(); ++i)
+            previewSum[i] = 0.5f * (l[i] + r[i]);
+        previewLayers[0].mono = previewSum;
     }
 
     void onButton(int id) override

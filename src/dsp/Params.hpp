@@ -66,6 +66,13 @@ enum ParamId {
     kWhistleTrillRate,
     kWhistleLength,
     kWhistleWidth,
+    // Vorhören aus der Oberfläche (versteckt, nicht automatisierbar). preview: Bit 0–2 = 1 spielen, 0 = Stopp,
+    // Bit 3 wechselt bei jedem Klick, damit jede Änderung auslöst.
+    kPreview,
+    kPreviewLoop,
+    kPreviewPhrase, // aus = ein Ton bzw. Akkord, an = kurze Phrase (1 Takt)
+    kPreviewActive, // Anzeige: 1, solange vorgehört wird
+    kCurrentBpm,    // Anzeige: Tempo, mit dem die Engine gerade rechnet
 
     kParamCount
 };
