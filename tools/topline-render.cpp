@@ -1,3 +1,5 @@
+#include "../src/link/PluginMeta.hpp"
+#include <cstdio>
 // topline-render: rendert Noten mit dem DSP-Kern von Offbeat Topline in eine WAV-Datei und misst sie.
 //
 //   topline-render --preset 0 --note F5 --length 800 --check
@@ -376,6 +378,25 @@ void usage()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::strcmp(argv[1], "--meta-check") == 0) { // Regler-Beschreibung für Offbeat Performance
+        setenv("OFFBEAT_META_DIR", "/tmp/offbeat-meta-check", 1);
+        const bool wrote = offbeat::writePluginMeta();
+        std::string j;
+        if (FILE* f = std::fopen("/tmp/offbeat-meta-check/topline.json", "rb")) {
+            char buf[4096];
+            size_t k;
+            while ((k = std::fread(buf, 1, sizeof(buf), f)) > 0)
+                j.append(buf, k);
+            std::fclose(f);
+        }
+        int depth = 0, minDepth = 0;
+        for (char c : j)
+            depth += c == '{' || c == '[' ? 1 : c == '}' || c == ']' ? -1 : 0, minDepth = std::min(minDepth, depth);
+        const bool ok = wrote && j.find("\"plugin\":\"topline\"") != std::string::npos && j.find("\"groups\":[{") != std::string::npos
+                     && depth == 0 && minDepth == 0;
+        std::printf("Meta-Datei %s\n%s\n", ok ? "geschrieben und vollständig" : "FEHLT oder kaputt", ok ? "BESTANDEN" : "NICHT BESTANDEN");
+        return ok ? 0 : 1;
+    }
     int preset = -1, mode = -1, velocity = 110, sr = 48000;
     std::vector<std::pair<int, float>> notes;
     float bpm = 160.0f, lengthMs = 400.0f, tailMs = 1500.0f;

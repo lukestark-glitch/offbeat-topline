@@ -1,6 +1,7 @@
 // DPF-Hülle von Offbeat Topline: reicht Parameter, Programme, MIDI und Host-Tempo an die Engine weiter.
 #include "DistrhoPlugin.hpp"
 #include "../src/link/OffbeatLink.hpp"
+#include "../src/link/PluginMeta.hpp"
 #include "Engine.hpp"
 #include "OffbeatParam.hpp"
 
@@ -14,6 +15,7 @@ public:
         : Plugin(kParamCount, kPresetCount, 0)
     {
         engine.setSampleRate((float)getSampleRate());
+        writePluginMeta(); // Regler-Beschreibung für Offbeat Performance
     }
 
 protected:

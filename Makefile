@@ -37,6 +37,7 @@ bin/topline-render: tools/topline-render.cpp $(DSP_SRC) $(DSP_HDR)
 	$(CXX) -std=gnu++17 -O2 -Wall -Wextra -Isrc/dsp -Itools tools/topline-render.cpp $(DSP_SRC) -o $@
 
 check: render
+	bin/topline-render --meta-check
 	bin/topline-render --check-all
 	bin/topline-render --preview-check
 
