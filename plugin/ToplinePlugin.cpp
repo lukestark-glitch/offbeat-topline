@@ -4,6 +4,7 @@
 #include <cstring>
 #include <cmath>
 #include <bitset>
+#include "../src/link/OffbeatFxDsp.hpp"
 #include "../src/link/OffbeatLink.hpp"
 #include "../src/link/PluginMeta.hpp"
 #include "Engine.hpp"
@@ -18,6 +19,7 @@ public:
     ToplinePlugin()
         : Plugin(kParamCount, kPresetCount, 0)
     {
+        beatFx.prepare(getSampleRate());
         engine.setSampleRate((float)getSampleRate());
         writePluginMeta(); // Regler-Beschreibung für Offbeat Performance
     }
@@ -46,7 +48,11 @@ protected:
     float getParameterValue(uint32_t index) const override { return engine.getParam((int)index); }
     void setParameterValue(uint32_t index, float value) override { engine.setParam((int)index, value); }
 
-    void sampleRateChanged(double newSampleRate) override { engine.setSampleRate((float)newSampleRate); }
+    void sampleRateChanged(double newSampleRate) override
+    {
+        engine.setSampleRate((float)newSampleRate);
+        beatFx.prepare(newSampleRate);
+    }
 
     void run(const float**, float** outputs, uint32_t frames, const MidiEvent* events, uint32_t eventCount) override
     {
@@ -66,12 +72,16 @@ protected:
                 if (!(kParams[i].flags & (kFlagOutput | kFlagHidden)) && i != kMidiChannel) // Song lädt Sound, nicht Kanal
                     engine.setParam(i, linkValues[i]);
 
+        // Beat FX (Offbeat Clutch): gilt der Effekt für diese Spur?
+        fx::read(fxShared, fxState); // bei laufendem Schreiben bleibt der letzte Zustand
+        const bool fxTargeted = fx::targets(fxState, link.linkId(), link.trackIndex());
+
         // Stille überspringen: keine eigenen MIDI-Ereignisse, keine gehaltene Note, keine Vorschau und der Ausgang ist
         // seit 0,5 s still (Hall/Delay ausgeklungen) → nicht rechnen. Spart bei vielen Synths in Carla die meiste Last.
         bool mine = false;
         for (uint32_t e = 0; e < eventCount && !mine; ++e)
             mine = events[e].size <= 3 && events[e].data[0] < 0xf0 && forMe(events[e].data[0]);
-        if (!mine && held.none() && quietFrames >= getSampleRate() * 0.5 && engine.getParam(kPreview) < 0.5f
+        if (!mine && held.none() && !beatFx.active() && !(fxState.on && fxTargeted) && quietFrames >= getSampleRate() * 0.5 && engine.getParam(kPreview) < 0.5f
             && engine.getParam(kPreviewActive) < 0.5f) {
             std::memset(outputs[0], 0, sizeof(float) * frames);
             std::memset(outputs[1], 0, sizeof(float) * frames);
@@ -103,6 +113,13 @@ protected:
         }
         if (pos < frames)
             engine.process(outputs[0] + pos, outputs[1] + pos, frames - pos);
+        {
+            const bool bbt = tp.bbt.valid && tp.bbt.beatsPerMinute > 0.0;
+            const double fxBeat = bbt && tp.playing ? (double)(tp.bbt.bar - 1) * tp.bbt.beatsPerBar + (tp.bbt.beat - 1)
+                                                          + tp.bbt.tick / tp.bbt.ticksPerBeat
+                                                    : -1.0;
+            beatFx.process(outputs[0], outputs[1], frames, fxState, fxTargeted, bbt ? tp.bbt.beatsPerMinute : 160.0, fxBeat);
+        }
         float peak = 0.0f;
         for (uint32_t i = 0; i < frames; ++i)
             peak = std::max(peak, std::max(std::fabs(outputs[0][i]), std::fabs(outputs[1][i])));
@@ -120,6 +137,9 @@ private:
     Engine engine;
     std::bitset<128> held; // gehaltene Noten (für das Überspringen der Stille)
     double quietFrames = 0;
+    fx::Shared* fxShared = fx::open(); // Beat FX von Offbeat Clutch
+    fx::State fxState;
+    fx::BeatFx beatFx;
     link::Client link { link::kTopline };
     float linkValues[link::kMaxValues];
 

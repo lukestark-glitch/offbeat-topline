@@ -38,6 +38,7 @@ bin/topline-render: tools/topline-render.cpp $(DSP_SRC) $(DSP_HDR)
 
 check: render
 	bin/topline-render --meta-check
+	bin/topline-render --fx-check
 	bin/topline-render --check-all
 	bin/topline-render --preview-check
 

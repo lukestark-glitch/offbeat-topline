@@ -1,3 +1,5 @@
+#include "../src/link/OffbeatFxTest.hpp"
+#include <cstring>
 #include "../src/link/PluginMeta.hpp"
 #include <cstdio>
 // topline-render: rendert Noten mit dem DSP-Kern von Offbeat Topline in eine WAV-Datei und misst sie.
@@ -378,6 +380,8 @@ void usage()
 
 int main(int argc, char** argv)
 {
+    if (argc == 2 && std::strcmp(argv[1], "--fx-check") == 0) // Beat FX (gemeinsamer Code der Familie)
+        return offbeat::fx::fxCheck();
     if (argc == 2 && std::strcmp(argv[1], "--meta-check") == 0) { // Regler-Beschreibung für Offbeat Performance
         setenv("OFFBEAT_META_DIR", "/tmp/offbeat-meta-check", 1);
         const bool wrote = offbeat::writePluginMeta();

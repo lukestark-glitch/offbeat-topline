@@ -162,6 +162,8 @@ public:
     }
 
     bool linked() const { return reg && id; }
+    uint32_t linkId() const { return id; }        // Gearbox-Kennung (0 = noch keine)
+    uint32_t trackIndex() const { return track; } // Spur 0–7 der Gearbox
 
     // Einmal pro Block (Audio-Thread): schreibt ~10×/s den Zustand; true + Werte, wenn eine Lade-Anfrage vorliegt.
     template <class Get>
