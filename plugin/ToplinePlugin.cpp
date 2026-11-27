@@ -1,5 +1,9 @@
 // DPF-Hülle von Offbeat Topline: reicht Parameter, Programme, MIDI und Host-Tempo an die Engine weiter.
 #include "DistrhoPlugin.hpp"
+#include <algorithm>
+#include <cstring>
+#include <cmath>
+#include <bitset>
 #include "../src/link/OffbeatLink.hpp"
 #include "../src/link/PluginMeta.hpp"
 #include "Engine.hpp"
@@ -35,7 +39,8 @@ protected:
         float values[kParamCount];
         applyPreset((int)index, values);
         for (int i = 0; i < kParamCount; ++i)
-            engine.setParam(i, values[i]);
+            if (i != kMidiChannel) // Preset/Program Change ändert nie den Kanal
+                engine.setParam(i, values[i]);
     }
 
     float getParameterValue(uint32_t index) const override { return engine.getParam((int)index); }
@@ -58,13 +63,27 @@ protected:
         int linkCount = 0;
         if (link.update((double)frames / getSampleRate(), kParamCount, [&](int i) { return engine.getParam(i); }, linkValues, linkCount))
             for (int i = 0; i < linkCount && i < kParamCount; ++i)
-                if (!(kParams[i].flags & (kFlagOutput | kFlagHidden)))
+                if (!(kParams[i].flags & (kFlagOutput | kFlagHidden)) && i != kMidiChannel) // Song lädt Sound, nicht Kanal
                     engine.setParam(i, linkValues[i]);
+
+        // Stille überspringen: keine eigenen MIDI-Ereignisse, keine gehaltene Note, keine Vorschau und der Ausgang ist
+        // seit 0,5 s still (Hall/Delay ausgeklungen) → nicht rechnen. Spart bei vielen Synths in Carla die meiste Last.
+        bool mine = false;
+        for (uint32_t e = 0; e < eventCount && !mine; ++e)
+            mine = events[e].size <= 3 && events[e].data[0] < 0xf0 && forMe(events[e].data[0]);
+        if (!mine && held.none() && quietFrames >= getSampleRate() * 0.5 && engine.getParam(kPreview) < 0.5f
+            && engine.getParam(kPreviewActive) < 0.5f) {
+            std::memset(outputs[0], 0, sizeof(float) * frames);
+            std::memset(outputs[1], 0, sizeof(float) * frames);
+            return;
+        }
 
         uint32_t pos = 0;
         for (uint32_t e = 0; e < eventCount; ++e) {
             const MidiEvent& ev = events[e];
             if (ev.size > 3 || ev.frame >= frames)
+                continue;
+            if (!forMe(ev.data[0]))
                 continue;
             if (ev.frame > pos) {
                 engine.process(outputs[0] + pos, outputs[1] + pos, ev.frame - pos);
@@ -72,11 +91,11 @@ protected:
             }
             const uint8_t status = ev.data[0] & 0xF0;
             if (status == 0x90 && ev.data[2] > 0)
-                engine.noteOn(ev.data[1], ev.data[2]);
+                engine.noteOn(ev.data[1], ev.data[2]), held.set(ev.data[1] & 127);
             else if (status == 0x80 || status == 0x90)
-                engine.noteOff(ev.data[1]);
+                engine.noteOff(ev.data[1]), held.reset(ev.data[1] & 127);
             else if (status == 0xB0 && (ev.data[1] == 120 || ev.data[1] == 123))
-                engine.allNotesOff();
+                engine.allNotesOff(), held.reset();
             else if (status == 0xC0 && ev.data[1] < kPresetCount) // Program Change, z. B. von Offbeat Gearbox
                 loadProgram(ev.data[1]);
             if (status == 0xB0)
@@ -84,10 +103,23 @@ protected:
         }
         if (pos < frames)
             engine.process(outputs[0] + pos, outputs[1] + pos, frames - pos);
+        float peak = 0.0f;
+        for (uint32_t i = 0; i < frames; ++i)
+            peak = std::max(peak, std::max(std::fabs(outputs[0][i]), std::fabs(outputs[1][i])));
+        quietFrames = peak < 1e-5f ? quietFrames + frames : 0;
     }
 
 private:
+    // Kanalnachricht für diesen Synth? (MIDI-Kanal-Parameter; 0 = Omni). Systemnachrichten immer.
+    bool forMe(uint8_t status) const
+    {
+        const int ch = (int)engine.getParam(kMidiChannel);
+        return ch <= 0 || status >= 0xf0 || (status & 15) == ch - 1;
+    }
+
     Engine engine;
+    std::bitset<128> held; // gehaltene Noten (für das Überspringen der Stille)
+    double quietFrames = 0;
     link::Client link { link::kTopline };
     float linkValues[link::kMaxValues];
 

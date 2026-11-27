@@ -9,6 +9,9 @@ static const char* const kDelayNames[5] = { "1/16", "1/8", "1/8.", "1/4", "1/4."
 const float kDelayBeats[5] = { 0.25f, 0.5f, 0.75f, 1.0f, 1.5f };
 
 // clang-format off
+static const char* const kMidiChannelNames[17] = { "Omni", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
+                                                   "13", "14", "15", "16" };
+
 const ParamInfo kParams[kParamCount] = {
     // name                  symbol              unit    min     max      default  flags
     { "Mode",                "mode",             "",     0,      3,       0,       kFlagInt, kModeNames },
@@ -72,6 +75,7 @@ const ParamInfo kParams[kParamCount] = {
     { "Preview Phrase",      "preview_phrase",   "",     0,      1,       0,       kFlagBool | kFlagHidden },
     { "Preview Active",      "preview_active",   "",     0,      4,       0,       kFlagOutput | kFlagHidden },
     { "Current BPM",         "current_bpm",      "BPM",  20,     300,     160,     kFlagOutput | kFlagHidden },
+    { "MIDI Channel", "midi_channel", "", 0, 16, 0, kFlagInt, kMidiChannelNames },
 };
 
 namespace {

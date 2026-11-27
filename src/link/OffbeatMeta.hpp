@@ -107,7 +107,10 @@ std::string paramsJson(const P* params, int count)
 }
 
 template <class P>
-bool editable(const P& p) { return !(p.flags & (8 | 16)); }
+bool editable(const P& p) // nicht: Anzeigen, versteckte Bedienelemente, MIDI-Kanal (Verkabelung, kein Klang)
+{
+    return !(p.flags & (8 | 16)) && std::string(p.symbol) != "midi_channel";
+}
 
 struct Group {
     std::string name;
